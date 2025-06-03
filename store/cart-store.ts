@@ -1,5 +1,5 @@
-import { persist } from "zustand/middleware";
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export interface CartItem {
   id: string;
@@ -12,13 +12,13 @@ export interface CartItem {
 interface CartStore {
   items: CartItem[];
   addItem: (item: CartItem) => void;
-  removeItem :(id : string) => void;
-  clearCart: (item : CartItem) => void;
+  removeItem: (id: string) => void;
+  clearCart: () => void;
 }
 
 export const useCartStore = create<CartStore>()(
   persist(
-     (set) => ({
+    (set, get) => ({
       items: [],
       addItem: (item) =>
         set((state) => {
@@ -26,7 +26,7 @@ export const useCartStore = create<CartStore>()(
           if (existing) {
             return {
               items: state.items.map((i) =>
-                i.id == item.id
+                i.id === item.id
                   ? { ...i, quantity: i.quantity + item.quantity }
                   : i
               ),
@@ -34,21 +34,28 @@ export const useCartStore = create<CartStore>()(
           }
           return { items: [...state.items, item] };
         }),
-        removeItem:(id) =>
-            set((state) =>{
-                return {
-                    items : state.items
-                    .map((item) =>
-                        item.id === id ? {...item , quantity: item.quantity -1}: item
-                )
-                .filter((item) => item.quantity > 0),
-                }
-            }),
-            clearCart:()=>
-                set(() =>{
-                    return {items: [] };
-                }),
+      removeItem: (id) =>
+        set((state) => ({
+          items: state.items
+            .map((item) =>
+              item.id === id
+                ? { ...item, quantity: item.quantity - 1 }
+                : item
+            )
+            .filter((item) => item.quantity > 0),
+        })),
+      clearCart: () => {
+        set({ items: [] });
+
+        // 👇 correctly remove persisted storage (cart-storage)
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("cart-storage");
+        }
+      },
     }),
-    { name: "cart" }
+    {
+      name: "cart-storage",
+      skipHydration: true, // ⛔ prevent auto rehydrate before check
+    }
   )
 );
